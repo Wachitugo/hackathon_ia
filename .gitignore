@@ -1,0 +1,6 @@
+*.xpt
+*.csv
+*.pdf
+.env
+__pycache__/
+GEMINI.md
