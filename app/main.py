@@ -13,6 +13,8 @@ from xhtml2pdf import pisa
 from io import BytesIO
 import qrcode
 import base64
+import matplotlib.pyplot as plt
+import matplotlib
 
 
 # Rutas de directorios relativas a este archivo (app/main.py)
@@ -69,7 +71,7 @@ class PDFCreateRequest(BaseModel):
 	html_content: str
 	title: str = "Documento"
 	description: str = ""
-
+	percentage: float = 0.0
 
 # Modelo para la respuesta de creación de PDF
 class PDFCreateResponse(BaseModel):
@@ -162,6 +164,130 @@ def generate_qr_code(url: str) -> str:
 	img_base64 = base64.b64encode(buffer.read()).decode()
 	
 	return img_base64
+
+
+def generate_circular_chart(percentage: float, title: str = "Progreso") -> str:
+	"""
+	Genera un gráfico circular (donut chart) para mostrar un porcentaje.
+	
+	Args:
+		percentage: Valor del porcentaje (0-100)
+		title: Título del gráfico
+		
+	Returns:
+		String base64 del gráfico en formato PNG
+	"""
+	# Configurar matplotlib para no usar GUI
+	matplotlib.use('Agg')
+	
+	# Asegurar que el porcentaje esté en el rango correcto
+	percentage = max(0, min(100, percentage))
+	remaining = 100 - percentage
+	
+	# Crear figura con fondo transparente
+	fig, ax = plt.subplots(figsize=(6, 6), facecolor='white')
+	
+	# Datos para el gráfico
+	sizes = [percentage, remaining]
+	colors = ['#4CAF50', '#E8E8E8']  # Verde para completado, gris claro para restante
+	explode = (0.05, 0)  # Resaltar la sección del porcentaje
+	
+	# Crear el gráfico circular (donut)
+	wedges, texts, autotexts = ax.pie(
+		sizes,
+		explode=explode,
+		colors=colors,
+		autopct='',
+		startangle=90,
+		wedgeprops=dict(width=0.4, edgecolor='white', linewidth=2)
+	)
+	
+	# Agregar el porcentaje en el centro
+	ax.text(0, 0, f'{percentage:.1f}%', 
+			ha='center', va='center', 
+			fontsize=48, fontweight='bold', 
+			color='#333333')
+	
+	# Agregar título arriba del gráfico
+	ax.text(0, -1.4, title, 
+			ha='center', va='center', 
+			fontsize=18, fontweight='bold', 
+			color='#555555')
+	
+	# Asegurar que el gráfico sea circular
+	ax.axis('equal')
+	
+	# Guardar en buffer
+	buffer = BytesIO()
+	plt.tight_layout()
+	plt.savefig(buffer, format='PNG', dpi=150, bbox_inches='tight', 
+				facecolor='white', edgecolor='none')
+	plt.close(fig)
+	
+	# Convertir a base64
+	buffer.seek(0)
+	img_base64 = base64.b64encode(buffer.read()).decode()
+	
+	return img_base64
+
+
+def add_chart_to_html(html_content: str, percentage: float, chart_title: str = "Nivel de Riesgo") -> str:
+	"""
+	Agrega un gráfico circular al inicio del contenido HTML.
+	
+	Args:
+		html_content: Contenido HTML original
+		percentage: Porcentaje para mostrar (0-100)
+		chart_title: Título del gráfico
+		
+	Returns:
+		HTML con el gráfico agregado al inicio
+	"""
+	# Generar gráfico circular
+	chart_base64 = generate_circular_chart(percentage, chart_title)
+	
+	# HTML del gráfico centrado al inicio del documento
+	chart_html = f"""
+	<!DOCTYPE html>
+	<html>
+	<head>
+		<meta charset="utf-8">
+		<style>
+			body {{
+				font-family: Arial, sans-serif;
+				margin: 20px;
+			}}
+			.chart-container {{
+				text-align: center;
+				margin: 30px auto 50px;
+				padding: 20px;
+			}}
+			.chart-container img {{
+				max-width: 400px;
+				height: auto;
+			}}
+		</style>
+	</head>
+	<body>
+		<div class="chart-container">
+			<img src="data:image/png;base64,{chart_base64}" alt="Gráfico Circular">
+		</div>
+	"""
+	
+	# Limpiar el HTML original de etiquetas de documento si las tiene
+	content = html_content
+	if '<!DOCTYPE' in content:
+		# Extraer solo el contenido del body
+		import re
+		body_match = re.search(r'<body[^>]*>(.*?)</body>', content, re.DOTALL | re.IGNORECASE)
+		if body_match:
+			content = body_match.group(1)
+		else:
+			# Si no hay body, quitar html, head, body tags
+			content = re.sub(r'<html[^>]*>|</html>|<head[^>]*>.*?</head>|<body[^>]*>|</body>', '', content, flags=re.DOTALL | re.IGNORECASE)
+	
+	# Combinar gráfico con contenido
+	return chart_html + content
 
 
 def add_qr_to_html(html_content: str, pdf_url: str) -> str:
@@ -260,8 +386,13 @@ async def create_pdf(request: PDFCreateRequest, req: Request):
 		base_url = str(req.base_url).rstrip('/')
 		pdf_view_url = f"{base_url}/api/pdf/{pdf_id}/view"
 		
-		# Agregar código QR al HTML
-		html_with_qr = add_qr_to_html(request.html_content, pdf_view_url)
+		# Agregar gráfico circular al inicio del HTML si se proporciona un porcentaje
+		html_content = request.html_content
+		if request.percentage > 0:
+			html_content = add_chart_to_html(html_content, request.percentage, f"{request.title} - Análisis")
+		
+		# Agregar código QR al final del HTML
+		html_with_qr = add_qr_to_html(html_content, pdf_view_url)
 		
 		# Convertir HTML a PDF usando xhtml2pdf
 		with open(pdf_path, "wb") as pdf_file:
