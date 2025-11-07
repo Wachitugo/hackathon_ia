@@ -1,11 +1,11 @@
 """
 Módulo para cargar y ejecutar el modelo de predicción de diabetes.
 """
-import pickle
 import numpy as np
 from pathlib import Path
 from typing import Dict, Any, Tuple
 import logging
+from xgboost import XGBClassifier
 
 logger = logging.getLogger(__name__)
 
@@ -41,11 +41,11 @@ DEFAULT_VALUES = {
 
 
 def load_model():
-    """Carga el modelo desde disco."""
+    """Carga el modelo XGBoost desde disco."""
     try:
-        with open(MODEL_PATH, 'rb') as f:
-            model = pickle.load(f)
-        logger.info(f"Modelo cargado exitosamente desde {MODEL_PATH}")
+        model = XGBClassifier()
+        model.load_model(MODEL_PATH)
+        logger.info(f"Modelo XGBoost cargado exitosamente desde {MODEL_PATH}")
         return model
     except FileNotFoundError:
         logger.error(f"Modelo no encontrado en {MODEL_PATH}")
@@ -117,7 +117,7 @@ def predict_diabetes_risk(variables: Dict[str, Any]) -> Tuple[float, str]:
             # Si tiene predict_proba, obtener la probabilidad de la clase positiva
             proba = model.predict_proba(X)[0]
             # Asumiendo que la clase 1 es diabetes
-            risk_score = proba[1] if len(proba) > 1 else proba[0]
+            risk_score = float(proba[1] if len(proba) > 1 else proba[0])
         else:
             # Si solo tiene predict, obtener la predicción binaria
             prediction = model.predict(X)[0]
@@ -133,7 +133,8 @@ def predict_diabetes_risk(variables: Dict[str, Any]) -> Tuple[float, str]:
         
         logger.info(f"Predicción completada: score={risk_score:.3f}, nivel={risk_level}")
         
-        return risk_score, risk_level
+        # Asegurar que risk_score es float nativo de Python
+        return float(risk_score), risk_level
         
     except Exception as e:
         logger.error(f"Error en predicción: {e}")

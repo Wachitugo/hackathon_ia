@@ -102,12 +102,17 @@ VARIABLE_QUESTIONS = [
     },
     {
         "variable": "Total_MET_Score",
-        "question": "En una semana típica, ¿cuántos minutos dedicas a actividad física moderada o intensa? (caminar rápido, correr, gym, deportes)",
-        "type": "number",
-        "min": 0,
-        "max": 5000,
-        "unit": "minutos/semana",
-        "transform": lambda x: x * 4.0  # Conversión aproximada a MET-score
+        "question": "En una semana típica, ¿cuánta actividad física moderada o intensa realizas? (caminar rápido, correr, gym, deportes)",
+        "options": ["Bajo (poco o nada)", "Moderado (algunas veces)", "Alto (frecuentemente)"],
+        "map": {
+            "bajo": 400,           # Equivalente a ~100 min/semana * 4 MET
+            "bajo (poco o nada)": 400,
+            "moderado": 1000,      # Equivalente a ~250 min/semana * 4 MET
+            "moderado (algunas veces)": 1000,
+            "alto": 2000,          # Equivalente a ~500 min/semana * 4 MET
+            "alto (frecuentemente)": 2000
+        },
+        "type": "choice"
     }
 ]
 
