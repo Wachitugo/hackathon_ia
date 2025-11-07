@@ -196,8 +196,8 @@ def generate_circular_chart(percentage: float, title: str = "Progreso") -> str:
 	percentage = max(0, min(100, percentage))
 	remaining = 100 - percentage
 	
-	# Crear figura con fondo transparente
-	fig, ax = plt.subplots(figsize=(6, 6), facecolor='white')
+	# Crear figura con tamaño similar al QR (aproximadamente 200x200px)
+	fig, ax = plt.subplots(figsize=(2.5, 2.5), facecolor='white')
 	
 	# Datos para el gráfico
 	sizes = [percentage, remaining]
@@ -214,25 +214,25 @@ def generate_circular_chart(percentage: float, title: str = "Progreso") -> str:
 		wedgeprops=dict(width=0.4, edgecolor='white', linewidth=2)
 	)
 	
-	# Agregar el porcentaje en el centro
+ 	# Agregar el porcentaje en el centro con tamaño ajustado
 	ax.text(0, 0, f'{percentage:.1f}%', 
 			ha='center', va='center', 
-			fontsize=48, fontweight='bold', 
+			fontsize=20, fontweight='bold', 
 			color='#333333')
 	
-	# Agregar título arriba del gráfico
+	# Agregar título arriba del gráfico con tamaño grande
 	ax.text(0, -1.4, title, 
 			ha='center', va='center', 
-			fontsize=18, fontweight='bold', 
+			fontsize=14, fontweight='bold', 
 			color='#555555')
 	
 	# Asegurar que el gráfico sea circular
 	ax.axis('equal')
 	
-	# Guardar en buffer
+	# Guardar en buffer con tamaño similar al QR
 	buffer = BytesIO()
 	plt.tight_layout()
-	plt.savefig(buffer, format='PNG', dpi=150, bbox_inches='tight', 
+	plt.savefig(buffer, format='PNG', dpi=80, bbox_inches='tight', 
 				facecolor='white', edgecolor='none')
 	plt.close(fig)
 	
@@ -275,7 +275,7 @@ def add_chart_to_html(html_content: str, percentage: float, chart_title: str = "
 				padding: 20px;
 			}}
 			.chart-container img {{
-				max-width: 400px;
+				max-width: 200px;
 				height: auto;
 			}}
 		</style>
